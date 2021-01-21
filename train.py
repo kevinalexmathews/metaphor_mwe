@@ -8,7 +8,7 @@ random_seed = 616
 
 from evaluate import Evaluate
 
-def train_test_loader(X, y, A, A_MWE, target_indices, k, batch_train, batch_test):
+def train_test_loader(X, y, A, target_indices, k, batch_train, batch_test):
     """Generate k-fold splits given X, y, and the adjacency matrix A"""
     random_state = random_seed
     # Create attention masks
@@ -25,13 +25,11 @@ def train_test_loader(X, y, A, A_MWE, target_indices, k, batch_train, batch_test
     X = X.numpy()
 
     indices = np.array(target_indices)   # target token indexes
-    A_MWE = np.array(A_MWE)
 
     for train_index, test_index in kf.split(X): 
         X_train, X_test = X[train_index], X[test_index]
         y_train, y_test = y[train_index], y[test_index]
         A_train, A_test = A[train_index], A[test_index]
-        A_MWE_train, A_MWE_test = A_MWE[train_index], A_MWE[test_index]
         indices_train, indices_test = indices[train_index], indices[test_index]  # target token indexes
 
         train_masks, test_masks = attention_masks[train_index], attention_masks[test_index]
@@ -49,9 +47,6 @@ def train_test_loader(X, y, A, A_MWE, target_indices, k, batch_train, batch_test
         A_train = torch.tensor(A_train).long()
         A_test = torch.tensor(A_test).long()
 
-        A_MWE_train = torch.tensor(A_MWE_train).long()
-        A_MWE_test = torch.tensor(A_MWE_test).long()
-
         train_masks = torch.tensor(train_masks)
         test_masks = torch.tensor(test_masks)
 
@@ -59,11 +54,11 @@ def train_test_loader(X, y, A, A_MWE, target_indices, k, batch_train, batch_test
         indices_test = torch.tensor(indices_test)
 
         # Create an iterator with DataLoader
-        train_data = TensorDataset(X_train, train_masks, A_train, A_MWE_train, y_train, indices_train, train_indices)
+        train_data = TensorDataset(X_train, train_masks, A_train, y_train, indices_train, train_indices)
         train_sampler = RandomSampler(train_data)
         train_dataloader = DataLoader(train_data, sampler=train_sampler, batch_size=batch_train, drop_last=True)
 
-        test_data = TensorDataset(X_test, test_masks, A_test, A_MWE_test, y_test, indices_test, test_indices)
+        test_data = TensorDataset(X_test, test_masks, A_test, y_test, indices_test, test_indices)
         test_dataloader = DataLoader(test_data, sampler=None, batch_size=batch_test)
 
         yield train_dataloader, test_dataloader
@@ -95,13 +90,13 @@ def trainer(epochs, model, optimizer, scheduler, train_dataloader, test_dataload
             # Add batch to GPU
             batch = tuple(t.to(device) for t in batch)
             # Unpack the inputs from our dataloader
-            b_input_ids, b_input_mask, b_adj, b_adj_mwe, b_labels, b_target_idx, _ = batch
+            b_input_ids, b_input_mask, b_adj, b_labels, b_target_idx, _ = batch
 
             # Clear out the gradients (by default they accumulate)
             optimizer.zero_grad()
             # Forward pass
             ### For BERT + GCN and MWE
-            loss = model(b_input_ids.to(device), adj=b_adj, adj_mwe=b_adj_mwe ,attention_mask=b_input_mask.to(device), \
+            loss = model(b_input_ids.to(device), adj=b_adj, attention_mask=b_input_mask.to(device), \
                         labels=b_labels, batch=batch_train, target_token_idx=b_target_idx.to(device))
         
             train_loss_set.append(loss.item())
@@ -134,12 +129,12 @@ def trainer(epochs, model, optimizer, scheduler, train_dataloader, test_dataload
             # Add batch to GPU
             batch = tuple(t.to(device) for t in batch)
             # Unpack the inputs from our dataloader
-            b_input_ids, b_input_mask, b_adj, b_adj_mwe, b_labels, b_target_idx, test_idx = batch
+            b_input_ids, b_input_mask, b_adj, b_labels, b_target_idx, test_idx = batch
             # Telling the model not to compute or store gradients, saving memory and speeding up validation
             with torch.no_grad():
                 # Forward pass, calculate logit predictions
                 ### For BERT + GCN and MWE
-                logits = model(b_input_ids.to(device), adj=b_adj, adj_mwe=b_adj_mwe, attention_mask=b_input_mask.to(device), \
+                logits = model(b_input_ids.to(device), adj=b_adj, attention_mask=b_input_mask.to(device), \
                                batch=batch_test, target_token_idx=b_target_idx.to(device))
 
                 # Move logits and labels to CPU

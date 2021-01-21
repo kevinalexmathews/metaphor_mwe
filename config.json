@@ -1,5 +1,5 @@
-{"file_dir":"../datasets/trofi/TroFi_formatted_all3737.csv",
-	"mwe_dir":"../datasets/trofi/predicted_EN_O_model_ELMo_spect_gcn_blind_system_TroFi.cupt",
+{"file_dir":"datasets/trofi/TroFi_formatted_all3737.csv",
+	"mwe_dir":"datasets/trofi/predicted_EN_O_model_ELMo_spect_gcn_blind_system_TroFi.cupt",
 	"batch_train":16,
 	"batch_test":1,
 	"K":10,

@@ -21,7 +21,6 @@ import numpy as np
 import time
 import gc
 
-from mwe.myMWEProcess import *
 from train import *
 from models import *
 from utils import *
@@ -60,9 +59,6 @@ if __name__ == '__main__':
     MAX_LEN = config["max_len"]
 
     A = np.array(adjacency(sentences=sentences,max_len=MAX_LEN))
-
-    with open(mwe_dir) as f:
-            A_MWE = mwe_adjacency(f, file_dir, MAX_LEN-2)
 
     nlp = spacy.load("en_core_web_sm")
     # tokenize sentences
@@ -110,7 +106,7 @@ if __name__ == '__main__':
     all_predictions = []
     all_folds_labels = []
     recorded_results_per_fold = []
-    splits = train_test_loader(input_ids, labels, A, A_MWE, target_token_idices, K, BATCH_TRAIN, BATCH_TEST)
+    splits = train_test_loader(input_ids, labels, A, target_token_idices, K, BATCH_TRAIN, BATCH_TEST)
 
     for i, (train_dataloader, test_dataloader) in enumerate(splits):
         model = BertWithGCNAndMWE(MAX_LEN, bert_config, heads, heads_mwe, dropout)
