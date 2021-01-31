@@ -15,7 +15,6 @@ from transformers import BertTokenizer, BertConfig, RobertaTokenizer, RobertaCon
 from transformers import DistilBertTokenizer, DistilBertConfig
 from transformers import get_linear_schedule_with_warmup
 from transformers import AdamW, BertModel
-from layers.GCN import *
 from tqdm import tqdm, trange
 from sklearn.model_selection import KFold, StratifiedKFold
 import pandas as pd
@@ -52,10 +51,11 @@ if __name__ == '__main__':
     num_warmup_steps = args.num_warmup_steps
     trim_texts = args.trim_texts
     debug_mode = args.debug_mode
+    distort_context = args.distort_context
     plm = args.plm
     max_grad_norm = 1.0
 
-    tokenized_texts, labels, target_token_indices = get_wimcor_input(file_dir, trim_texts, maxlen, debug_mode)
+    tokenized_texts, labels, target_token_indices = get_wimcor_input(file_dir, trim_texts, maxlen, debug_mode, distort_context)
     maxlen = max([len(sent) for sent in tokenized_texts]) + 2
     print('num of samples: {}'.format(len(tokenized_texts)))
     print('maxlen of tokenized texts: {}'.format(maxlen))

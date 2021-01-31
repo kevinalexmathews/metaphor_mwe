@@ -63,8 +63,17 @@ def get_args():
                         dest='debug_mode',
                         action='store_false')
 
+    parser.add_argument('--distort_context',
+                        dest='distort_context',
+                        action='store_true')
+
+    parser.add_argument('--no_distort_context',
+                        dest='distort_context',
+                        action='store_false')
+
     parser.set_defaults(trim_texts=True)
     parser.set_defaults(debug_mode=True)
+    parser.set_defaults(distort_context=False)
     args = parser.parse_args()
     print(args)
 

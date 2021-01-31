@@ -4,6 +4,8 @@ import codecs
 from spacy.lang.en import English
 import spacy
 import numpy as np
+import random
+random.seed(42)
 from collections import Counter
 
 def locate_entity(document, ent, left_w, right_w):
@@ -17,7 +19,7 @@ def locate_entity(document, ent, left_w, right_w):
                     return index
     raise Exception()  # If this is ever triggered, there are problems parsing the text. Check SpaCy output!
 
-def read_file(path, trim_texts, maxlen, debug_mode):
+def read_file(path, trim_texts, maxlen, debug_mode, distort_context):
     # path = "~/metonymy-resolution/harvest-data/disambiguation-pages/corpora/new-corpora/prewin-multi/wiki_LOCATION_train.txt"  # Input file name.
 
     dirname = os.path.dirname(path)
@@ -29,6 +31,7 @@ def read_file(path, trim_texts, maxlen, debug_mode):
 
     spacy_tokenizer = English(parser=False)
     en_nlp = spacy.load('en')
+    vocabulary = list(en_nlp.vocab.strings)
     inp = codecs.open(path, mode="r", encoding="utf-8")
 
     tokenized_texts = []
@@ -46,16 +49,22 @@ def read_file(path, trim_texts, maxlen, debug_mode):
 
         index = locate_entity(en_doc, entity, spacy_tokenizer(sentence[0].strip()), spacy_tokenizer(sentence[2].strip()))
         tokens = [t.text for t in en_doc]
+        if distort_context:
+            # distort context by replace with random words from a vocab files
+            tokens = [random.choice(vocabulary) for t in tokens]
+            for idx, word in enumerate(entity):
+                tokens[index+idx] = word
+            assert (entity[0] == tokens[index])
+
         if trim_texts:
             # pick a window of context words for both sides of the PMW
             # instead of the entire sample
-            old_pmw = tokens[index]
             len_left_context = max(0, index-maxlen//2 - 1)
             len_right_context = index + maxlen//2 - 1
             tokens = tokens[len_left_context: len_right_context]
             index = index - len_left_context
-            assert (old_pmw == tokens[index])
-        # print(tokens[index])
+            assert (entity[0] == tokens[index])
+        # print(entity, tokens[index])
 
         tokenized_texts.append(tokens)
         labels.append(pmw_label)
@@ -70,10 +79,10 @@ def read_file(path, trim_texts, maxlen, debug_mode):
     print("Processed {} lines/sentences in file \'{}\'".format(len(tokenized_texts), path))
     return tokenized_texts, labels, target_token_indices
 
-def get_input(file_dir, trim_texts, maxlen, debug_mode):
+def get_input(file_dir, trim_texts, maxlen, debug_mode, distort_context):
     tokenized_texts, labels, target_token_indices = [], [], []
     for item in os.listdir(file_dir):
-        s_out, l_out, t_out = read_file(file_dir+item, trim_texts, maxlen, debug_mode)
+        s_out, l_out, t_out = read_file(file_dir+item, trim_texts, maxlen, debug_mode, distort_context)
         tokenized_texts.extend(s_out)
         labels.extend(l_out)
         target_token_indices.extend(t_out)
