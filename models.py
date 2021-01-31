@@ -1,21 +1,14 @@
 import torch
 import torch.nn as nn
-from transformers import AdamW, BertModel, RobertaModel, XLNetModel, DistilBertModel
+from transformers import AdamW
 
 
 class BertWithGCNAndMWE(nn.Module):
 
-    def __init__(self, config, dropout, plm, num_labels=2):
+    def __init__(self, config, dropout, bert, num_labels=2):
         super(BertWithGCNAndMWE, self).__init__()
         self.num_labels = num_labels
-        if plm=='bert':
-            self.bert = BertModel.from_pretrained('bert-base-uncased')
-        elif plm=='roberta':
-            self.bert = RobertaModel.from_pretrained('roberta-base')
-        elif plm=='xlnet':
-            self.bert = XLNetModel.from_pretrained('xlnet-base-cased')
-        elif plm=='distilbert':
-            self.bert = DistilBertModel.from_pretrained('distilbert-base-uncased')
+        self.bert = bert
         self.dropout = nn.Dropout(dropout)
         self.linear = nn.Linear(config.hidden_size,256)
         self.classifier = nn.Linear(256, num_labels)

@@ -11,8 +11,6 @@ import re, spacy, copy, random
 import torch
 import torch.nn as nn
 from torch.utils.data import TensorDataset, DataLoader, RandomSampler, SequentialSampler
-from transformers import BertTokenizer, BertConfig, RobertaTokenizer, RobertaConfig, XLNetTokenizer, XLNetConfig
-from transformers import DistilBertTokenizer, DistilBertConfig
 from transformers import get_linear_schedule_with_warmup
 from transformers import AdamW, BertModel
 from tqdm import tqdm, trange
@@ -25,6 +23,7 @@ import gc
 from train import train_test_loader, trainer
 from models import BertWithGCNAndMWE
 from utils import pad_or_truncate
+from utils import get_plm_resources
 from prepro_wimcor import get_input as get_wimcor_input
 from get_results import get_args
 
@@ -68,19 +67,8 @@ if __name__ == '__main__':
             sent.insert(len(sent), '[SEP]')
     # construct the vocabulary
     vocab = list(set([w for sent in tokenized_texts for w in sent]))
+    bert_model, tokenizer, bert_config = get_plm_resources(plm, len(vocab))
     # index the input words
-    if plm=='bert':
-        tokenizer = BertTokenizer.from_pretrained('bert-base-uncased')
-        bert_config = BertConfig(vocab_size_or_config_json_file=len(vocab))
-    elif plm=='roberta':
-        tokenizer = RobertaTokenizer.from_pretrained('roberta-base')
-        bert_config = RobertaConfig(vocab_size_or_config_json_file=len(vocab))
-    elif plm=='xlnet':
-        tokenizer = XLNetTokenizer.from_pretrained('xlnet-base-cased')
-        bert_config = XLNetConfig(vocab_size_or_config_json_file=len(vocab))
-    elif plm=='distilbert':
-        tokenizer = DistilBertTokenizer.from_pretrained('distilbert-base-uncased')
-        bert_config = DistilBertConfig(vocab_size_or_config_json_file=len(vocab))
     input_ids = [tokenizer.convert_tokens_to_ids(x) for x in tokenized_texts]
     input_ids = pad_or_truncate(input_ids,maxlen)
 
@@ -91,19 +79,19 @@ if __name__ == '__main__':
     splits = train_test_loader(input_ids, labels, target_token_indices, n_splits, train_batch_size, test_batch_size)
 
     for i, (train_dataloader, test_dataloader) in enumerate(splits):
-        model = BertWithGCNAndMWE(bert_config, dropout, plm)
+        print('fold number {}:'.format(i+1))
+
+        model = BertWithGCNAndMWE(bert_config, dropout, bert_model)
         model.to(device)
 
         optimizer = AdamW(model.parameters(), lr=2e-5, correct_bias=False)
         scheduler = get_linear_schedule_with_warmup(optimizer, num_warmup_steps=num_warmup_steps,
                                      num_training_steps=num_total_steps)
 
-        print('fold number {}:'.format(i+1))
-
         scores, all_preds, all_labels, test_indices = trainer(n_epochs, model, optimizer, scheduler,
                 train_dataloader, test_dataloader, train_batch_size, test_batch_size, device)
-        recorded_results_per_fold.append((scores.accuracy(),)+scores.precision_recall_fscore())
 
+        recorded_results_per_fold.append((scores.accuracy(),)+scores.precision_recall_fscore())
         all_test_indices.append(test_indices)
         all_predictions.append(all_preds)
         all_folds_labels.append(all_labels)

@@ -2,6 +2,30 @@ import torch
 import spacy
 import numpy as np
 
+from transformers import BertModel, RobertaModel, XLNetModel, DistilBertModel
+from transformers import BertTokenizer, BertConfig, RobertaTokenizer, RobertaConfig, XLNetTokenizer, XLNetConfig
+from transformers import DistilBertTokenizer, DistilBertConfig
+
+def get_plm_resources(plm, vocab_len):
+    """load PLM resources such as model, tokenizer and config"""
+    if plm=='bert':
+        bert_model = BertModel.from_pretrained('bert-base-uncased')
+        tokenizer = BertTokenizer.from_pretrained('bert-base-uncased')
+        bert_config = BertConfig(vocab_size_or_config_json_file=vocab_len)
+    elif plm=='roberta':
+        bert_model = RobertaModel.from_pretrained('roberta-base')
+        tokenizer = RobertaTokenizer.from_pretrained('roberta-base')
+        bert_config = RobertaConfig(vocab_size_or_config_json_file=vocab_len)
+    elif plm=='xlnet':
+        bert_model = XLNetModel.from_pretrained('xlnet-base-cased')
+        tokenizer = XLNetTokenizer.from_pretrained('xlnet-base-cased')
+        bert_config = XLNetConfig(vocab_size_or_config_json_file=vocab_len)
+    elif plm=='distilbert':
+        bert_model = DistilBertModel.from_pretrained('distilbert-base-uncased')
+        tokenizer = DistilBertTokenizer.from_pretrained('distilbert-base-uncased')
+        bert_config = DistilBertConfig(vocab_size_or_config_json_file=vocab_len)
+    return bert_model, tokenizer, bert_config
+
 def adjacency(sentences,max_len):
     """compute dependent-to-head adjacency matrices"""
     nlp = spacy.load("en_core_web_sm")
