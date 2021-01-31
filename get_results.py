@@ -2,8 +2,10 @@ import argparse
 
 def get_args():
     parser = argparse.ArgumentParser()
-    parser.add_argument("--file_dir",
-                        default="datasets/wimcor/five-cls/")
+    parser.add_argument("--pickle_dir",
+                        default="datasets/relocar/",
+                        choices=["datasets/wimcor/five-cls/", "datasets/relocar/"],
+                        help="path to directory containing pickle files")
 
     parser.add_argument('--train_batch_size',
                         default=8,

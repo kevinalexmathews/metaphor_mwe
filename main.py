@@ -28,8 +28,8 @@ from utils import pad_or_truncate
 from prepro_wimcor import get_input as get_wimcor_input
 from get_results import get_args
 
-def read_trofi_input(file_dir):
-    df = pd.read_csv(file_dir, header=0, sep=',')
+def read_trofi_input(pickle_dir):
+    df = pd.read_csv(pickle_dir, header=0, sep=',')
     # Create sentence and label lists
     tokenized_texts = df.sentence.values
     labels = df['label'].values
@@ -40,7 +40,7 @@ if __name__ == '__main__':
     device = torch.device("cuda:0" if torch.cuda.is_available() else "cpu")
 
     args = get_args()
-    file_dir = args.file_dir
+    pickle_dir = args.pickle_dir
     train_batch_size = args.train_batch_size
     test_batch_size = args.test_batch_size
     n_splits = args.n_splits
@@ -55,7 +55,7 @@ if __name__ == '__main__':
     plm = args.plm
     max_grad_norm = 1.0
 
-    tokenized_texts, labels, target_token_indices = get_wimcor_input(file_dir, trim_texts, maxlen, debug_mode, distort_context)
+    tokenized_texts, labels, target_token_indices = get_wimcor_input(pickle_dir, trim_texts, maxlen, debug_mode, distort_context)
     maxlen = max([len(sent) for sent in tokenized_texts]) + 2
     print('num of samples: {}'.format(len(tokenized_texts)))
     print('maxlen of tokenized texts: {}'.format(maxlen))
