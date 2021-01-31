@@ -14,3 +14,6 @@ class Evaluate():
         return score
     def precision_recall_fscore(self, tag_list=[0,1], average='macro'):
         return precision_recall_fscore_support(self.labels, self.out, average=average,labels=tag_list)[:-1]
+    def precision_recall_fscore_coarse(self, tag_list=[0,1], average='binary'):
+        # return metrics corresponding to the pos_label ONLY for coarse experimental setting (MET or LIT)
+        return precision_recall_fscore_support(self.labels, self.out, average=average, pos_label=1, labels=tag_list)[:-1]

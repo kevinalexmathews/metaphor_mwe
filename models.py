@@ -1,24 +1,28 @@
 import torch
 import torch.nn as nn
-from transformers import AdamW, BertModel
+from transformers import AdamW, BertModel, RobertaModel, XLNetModel, DistilBertModel
 
 
 class BertWithGCNAndMWE(nn.Module):
 
-    def __init__(self, max_len, config, heads, heads_mwe, dropout, num_labels=2):
+    def __init__(self, config, dropout, plm, num_labels=2):
         super(BertWithGCNAndMWE, self).__init__()
         self.num_labels = num_labels
-        self.max_len = max_len
-        self.heads = heads
-        self.heads_mwe = heads_mwe
-        self.bert = BertModel.from_pretrained('bert-base-uncased')
-        self.dropout = nn.Dropout(dropout) 
+        if plm=='bert':
+            self.bert = BertModel.from_pretrained('bert-base-uncased')
+        elif plm=='roberta':
+            self.bert = RobertaModel.from_pretrained('roberta-base')
+        elif plm=='xlnet':
+            self.bert = XLNetModel.from_pretrained('xlnet-base-cased')
+        elif plm=='distilbert':
+            self.bert = DistilBertModel.from_pretrained('distilbert-base-uncased')
+        self.dropout = nn.Dropout(dropout)
         self.linear = nn.Linear(config.hidden_size,256)
         self.classifier = nn.Linear(256, num_labels)
 
-    def forward(self, input_ids, target_token_idx, attention_mask, adj, batch, labels=None):
-        token_output, pooled_output = self.bert(input_ids,attention_mask=attention_mask) # pooled.shape [batch, output_dim]
-        gcn = token_output # gcn.shape: [batch, max_len, output_dim]
+    def forward(self, input_ids, target_token_idx, attention_mask, batch, labels=None):
+        outputs = self.bert(input_ids)
+        gcn = outputs.last_hidden_state
 
         target_token_idx_for_gather = target_token_idx.reshape(-1,1,1)
         target_token_idx_for_gather = target_token_idx_for_gather.expand(-1,1,gcn.shape[-1])

@@ -1,3 +1,4 @@
+import os
 import sys
 import json
 
@@ -10,7 +11,8 @@ import re, spacy, copy, random
 import torch
 import torch.nn as nn
 from torch.utils.data import TensorDataset, DataLoader, RandomSampler, SequentialSampler
-from transformers import BertTokenizer, BertConfig
+from transformers import BertTokenizer, BertConfig, RobertaTokenizer, RobertaConfig, XLNetTokenizer, XLNetConfig
+from transformers import DistilBertTokenizer, DistilBertConfig
 from transformers import get_linear_schedule_with_warmup
 from transformers import AdamW, BertModel
 from layers.GCN import *
@@ -21,95 +23,75 @@ import numpy as np
 import time
 import gc
 
-from train import *
-from models import *
-from utils import *
+from train import train_test_loader, trainer
+from models import BertWithGCNAndMWE
+from utils import pad_or_truncate
+from prepro_wimcor import get_input as get_wimcor_input
+from get_results import get_args
 
-if __name__ == '__main__':
-
-    device = torch.device("cuda:0" if torch.cuda.is_available() else "cpu")
-
-    config_file_path = sys.argv[1]
-
-    with open(config_file_path) as f:
-        config = json.load(f)
-
-    file_dir = config["file_dir"]
-    mwe_dir = config["mwe_dir"]
-
-    BATCH_TRAIN = config["batch_train"]
-    BATCH_TEST = config["batch_test"]
-
-    K = config["K"]
-    EPOCHS = config["epochs"]
-    dropout = config["dropout"]
-
-    num_total_steps = config["num_total_steps"]
-    num_warmup_steps = config["num_warmup_steps"]
-        
-    max_grad_norm = 1.0
-
+def read_trofi_input(file_dir):
     df = pd.read_csv(file_dir, header=0, sep=',')
     # Create sentence and label lists
-    sentences = df.sentence.values
+    tokenized_texts = df.sentence.values
+    labels = df['label'].values
+    target_token_indices = df['verb_idx'].values
+    return tokenized_texts, labels, target_token_indices
 
-    MAX_LEN = max([len(sent.split()) for sent in sentences]) + 2
-    print('MAX_LEN =',MAX_LEN)
+if __name__ == '__main__':
+    device = torch.device("cuda:0" if torch.cuda.is_available() else "cpu")
 
-    MAX_LEN = config["max_len"]
+    args = get_args()
+    file_dir = args.file_dir
+    train_batch_size = args.train_batch_size
+    test_batch_size = args.test_batch_size
+    n_splits = args.n_splits
+    n_epochs = args.epochs
+    dropout = args.dropout
+    maxlen = args.maxlen
+    num_total_steps = args.num_total_steps
+    num_warmup_steps = args.num_warmup_steps
+    trim_texts = args.trim_texts
+    debug_mode = args.debug_mode
+    plm = args.plm
+    max_grad_norm = 1.0
 
-    A = np.array(adjacency(sentences=sentences,max_len=MAX_LEN))
-
-    nlp = spacy.load("en_core_web_sm")
-    # tokenize sentences
-    # the same tokenizer that is used to get adjacency matrices 
-    tokenized_texts = []
-    for sent in sentences:
-            tokenized_sent = []
-            doc = nlp(sent)
-            for token in doc:
-                if not token.text.isspace():
-                    tokenized_sent.append(token.text.lower())
-            tokenized_texts.append(tokenized_sent)
+    tokenized_texts, labels, target_token_indices = get_wimcor_input(file_dir, trim_texts, maxlen, debug_mode)
+    maxlen = max([len(sent) for sent in tokenized_texts]) + 2
+    print('num of samples: {}'.format(len(tokenized_texts)))
+    print('maxlen of tokenized texts: {}'.format(maxlen))
+    print('tokenize the first sample: {}'.format(tokenized_texts[0]))
+    print('label of the first sample: {}'.format(labels[0]))
 
     # add special tokens at the beginning and end of each sentence
     for sent in tokenized_texts:
-            sent.insert(0,'[CLS]')
-            sent.insert(len(sent),'[SEP]')
-
-    print('len(sentences)={}'.format(len(sentences)))
-
-    labels = df['label'].values
-
-    target_token_idices = df['verb_idx'].values
-
-    print('max_len of tokenized texts:',max([len(sent) for sent in tokenized_texts]))
-
-    print ("Tokenize the first sentence:")
-    print (tokenized_texts[0])
-
-    # construct the vocabulary 
+            sent.insert(0, '[CLS]')
+            sent.insert(len(sent), '[SEP]')
+    # construct the vocabulary
     vocab = list(set([w for sent in tokenized_texts for w in sent]))
-    # index the input words 
-    tokenizer = BertTokenizer.from_pretrained('bert-base-uncased')
+    # index the input words
+    if plm=='bert':
+        tokenizer = BertTokenizer.from_pretrained('bert-base-uncased')
+        bert_config = BertConfig(vocab_size_or_config_json_file=len(vocab))
+    elif plm=='roberta':
+        tokenizer = RobertaTokenizer.from_pretrained('roberta-base')
+        bert_config = RobertaConfig(vocab_size_or_config_json_file=len(vocab))
+    elif plm=='xlnet':
+        tokenizer = XLNetTokenizer.from_pretrained('xlnet-base-cased')
+        bert_config = XLNetConfig(vocab_size_or_config_json_file=len(vocab))
+    elif plm=='distilbert':
+        tokenizer = DistilBertTokenizer.from_pretrained('distilbert-base-uncased')
+        bert_config = DistilBertConfig(vocab_size_or_config_json_file=len(vocab))
     input_ids = [tokenizer.convert_tokens_to_ids(x) for x in tokenized_texts]
-
-    input_ids = pad_or_truncate(input_ids,MAX_LEN)    
-
-    bert_config = BertConfig(vocab_size_or_config_json_file=len(vocab))
-
-    heads = config["heads"]
-    heads_mwe = config["heads_mwe"]
-
+    input_ids = pad_or_truncate(input_ids,maxlen)
 
     all_test_indices = []
     all_predictions = []
     all_folds_labels = []
     recorded_results_per_fold = []
-    splits = train_test_loader(input_ids, labels, A, target_token_idices, K, BATCH_TRAIN, BATCH_TEST)
+    splits = train_test_loader(input_ids, labels, target_token_indices, n_splits, train_batch_size, test_batch_size)
 
     for i, (train_dataloader, test_dataloader) in enumerate(splits):
-        model = BertWithGCNAndMWE(MAX_LEN, bert_config, heads, heads_mwe, dropout)
+        model = BertWithGCNAndMWE(bert_config, dropout, plm)
         model.to(device)
 
         optimizer = AdamW(model.parameters(), lr=2e-5, correct_bias=False)
@@ -118,8 +100,8 @@ if __name__ == '__main__':
 
         print('fold number {}:'.format(i+1))
 
-        scores, all_preds, all_labels, test_indices = trainer(EPOCHS, model, optimizer, scheduler, 
-                train_dataloader, test_dataloader, BATCH_TRAIN, BATCH_TEST, device)
+        scores, all_preds, all_labels, test_indices = trainer(n_epochs, model, optimizer, scheduler,
+                train_dataloader, test_dataloader, train_batch_size, test_batch_size, device)
         recorded_results_per_fold.append((scores.accuracy(),)+scores.precision_recall_fscore())
 
         all_test_indices.append(test_indices)
@@ -127,12 +109,11 @@ if __name__ == '__main__':
         all_folds_labels.append(all_labels)
 
     print('K-fold cross-validation results:')
-    print("Accuracy: {}".format(sum([i for i,j,k,l in recorded_results_per_fold])/K))
-    print("Precision: {}".format(sum([j for i,j,k,l in recorded_results_per_fold])/K))
-    print("Recall: {}".format(sum([k for i,j,k,l in recorded_results_per_fold])/K))
-    print("F-score: {}".format(sum([l for i,j,k,l in recorded_results_per_fold])/K))
+    print("Accuracy: {}".format(sum([i for i,j,k,l in recorded_results_per_fold])/n_splits))
+    print("Precision: {}".format(sum([j for i,j,k,l in recorded_results_per_fold])/n_splits))
+    print("Recall: {}".format(sum([k for i,j,k,l in recorded_results_per_fold])/n_splits))
+    print("F-score: {}".format(sum([l for i,j,k,l in recorded_results_per_fold])/n_splits))
 
     # sanity checks
-    print('####')
-    print('recorded_results_per_fold=',recorded_results_per_fold)
-    print('len(set(recorded_results_per_fold))=',len(set(recorded_results_per_fold)))
+    # print('recorded_results_per_fold: {}'.format(recorded_results_per_fold))
+    # print('len(set(recorded_results_per_fold)): {}'.format(len(set(recorded_results_per_fold))))
