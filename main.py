@@ -91,7 +91,7 @@ if __name__ == '__main__':
         scores, all_preds, all_labels, test_indices = trainer(n_epochs, model, optimizer, scheduler,
                 train_dataloader, test_dataloader, train_batch_size, test_batch_size, device)
 
-        recorded_results_per_fold.append((scores.accuracy(),)+scores.precision_recall_fscore())
+        recorded_results_per_fold.append((scores.accuracy(),)+scores.precision_recall_fscore_coarse())
         all_test_indices.append(test_indices)
         all_predictions.append(all_preds)
         all_folds_labels.append(all_labels)
