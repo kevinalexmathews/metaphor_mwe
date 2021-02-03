@@ -51,7 +51,7 @@ if __name__ == '__main__':
     trim_texts = args.trim_texts
     debug_mode = args.debug_mode
     distort_context = args.distort_context
-    plm = args.plm
+    plm_choice = args.plm_choice
     max_grad_norm = 1.0
 
     tokenized_texts, labels, target_token_indices = get_wimcor_input(pickle_dir, trim_texts, maxlen, debug_mode, distort_context)
@@ -67,7 +67,7 @@ if __name__ == '__main__':
             sent.insert(len(sent), '[SEP]')
     # construct the vocabulary
     vocab = list(set([w for sent in tokenized_texts for w in sent]))
-    bert_model, tokenizer, bert_config = get_plm_resources(plm, len(vocab))
+    bert_model, tokenizer, bert_config = get_plm_resources(plm_choice, len(vocab))
     # index the input words
     input_ids = [tokenizer.convert_tokens_to_ids(x) for x in tokenized_texts]
     input_ids = pad_or_truncate(input_ids,maxlen)

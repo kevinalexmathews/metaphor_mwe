@@ -44,7 +44,7 @@ def get_args():
                         default=0.6,
                         type=float)
 
-    parser.add_argument('--plm',
+    parser.add_argument('--plm_choice',
                         default='bert',
                         choices=['bert', 'roberta', 'xlnet', 'distilbert'],
                         help="pre-trained language model")
