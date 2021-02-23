@@ -3,7 +3,7 @@ import argparse
 def get_args():
     parser = argparse.ArgumentParser()
     parser.add_argument("--pickle_dir",
-                        default="datasets/relocar/",
+                        default="datasets/wimcor/five-cls/",
                         choices=["datasets/wimcor/five-cls/", "datasets/relocar/"],
                         help="path to directory containing pickle files")
 
@@ -84,7 +84,7 @@ def get_args():
                         action='store_false')
 
     parser.set_defaults(trim_texts=True)
-    parser.set_defaults(debug_mode=True)
+    parser.set_defaults(debug_mode=False)
     parser.set_defaults(distort_context=False)
     args = parser.parse_args()
     print(args)
