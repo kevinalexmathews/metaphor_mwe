@@ -55,6 +55,8 @@ if __name__ == '__main__':
     debug_mode = args.debug_mode
     distort_context = args.distort_context
     plm_choice = args.plm_choice
+    layer_no = args.layer_no
+    oracle = args.oracle
     max_grad_norm = 1.0
 
     tokenized_texts, labels, target_token_indices = get_wimcor_input(pickle_dir, trim_texts, maxlen, debug_mode, distort_context)

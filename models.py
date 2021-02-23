@@ -6,17 +6,27 @@ from transformers import AdamW
 
 class BertWithGCNAndMWE(nn.Module):
 
-    def __init__(self, config, dropout, bert, num_labels=2):
+    def __init__(self, config, dropout, bert, layer_no, oracle, num_labels=2):
         super(BertWithGCNAndMWE, self).__init__()
         self.num_labels = num_labels
         self.bert = bert
         self.dropout = nn.Dropout(dropout)
-        self.linear = nn.Linear(config.hidden_size,256)
+        self.oracle = oracle
+        if self.oracle:
+            # oracle performance denotes concatenation of all layers (Dalvi et al., 2020)
+            self.linear = nn.Linear(config.hidden_size*(config.num_hidden_layers+1),256)
+        else:
+            self.linear = nn.Linear(config.hidden_size,256)
         self.classifier = nn.Linear(256, num_labels)
+        self.layer_no = layer_no
 
     def forward(self, input_ids, target_token_idx, attention_mask, batch, labels=None):
-        outputs = self.bert(input_ids)
-        gcn = outputs.last_hidden_state
+        outputs = self.bert(input_ids, output_hidden_states=True)
+        # gcn = outputs.last_hidden_state
+        if self.oracle:
+            gcn = torch.cat(outputs.hidden_states, dim=-1)
+        else:
+            gcn = outputs.hidden_states[self.layer_no]
 
         target_token_idx_for_gather = target_token_idx.reshape(-1,1,1)
         target_token_idx_for_gather = target_token_idx_for_gather.expand(-1,1,gcn.shape[-1])

@@ -27,6 +27,11 @@ def get_args():
                         type=int,
                         help="for cross-validation")
 
+    parser.add_argument('--layer_no',
+                        default=-1, # last_hidden_layer
+                        type=int,
+                        help="which PLM layer to use")
+
     parser.add_argument('-e', '--epochs',
                         default=5,
                         type=int,
@@ -83,9 +88,18 @@ def get_args():
                         dest='distort_context',
                         action='store_false')
 
+    parser.add_argument('--oracle',
+                        dest='oracle',
+                        action='store_true')
+
+    parser.add_argument('--no_oracle',
+                        dest='oracle',
+                        action='store_false')
+
     parser.set_defaults(trim_texts=True)
     parser.set_defaults(debug_mode=False)
     parser.set_defaults(distort_context=False)
+    parser.set_defaults(oracle=False)
     args = parser.parse_args()
     print(args)
 
