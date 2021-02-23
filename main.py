@@ -22,6 +22,7 @@ import gc
 
 from train import train_test_loader, trainer
 from models import BertWithGCNAndMWE
+from models import BertWithPreWin
 from utils import pad_or_truncate
 from utils import get_plm_resources
 from prepro_wimcor import get_input as get_wimcor_input
@@ -44,6 +45,8 @@ if __name__ == '__main__':
     test_batch_size = args.test_batch_size
     n_splits = args.n_splits
     n_epochs = args.epochs
+    expt_model_choice = args.expt_model_choice
+    window_size = args.window_size
     dropout = args.dropout
     maxlen = args.maxlen
     num_total_steps = args.num_total_steps
@@ -76,20 +79,24 @@ if __name__ == '__main__':
     all_predictions = []
     all_folds_labels = []
     recorded_results_per_fold = []
-    splits = train_test_loader(input_ids, labels, target_token_indices, n_splits, train_batch_size, test_batch_size)
+    splits = train_test_loader(input_ids, labels, target_token_indices, n_splits, train_batch_size, test_batch_size, window_size)
 
     for i, (train_dataloader, test_dataloader) in enumerate(splits):
         print('fold number {}:'.format(i+1))
 
-        model = BertWithGCNAndMWE(bert_config, dropout, bert_model)
-        model.to(device)
+        if expt_model_choice=='BertWithGCNAndMWE':
+            expt_model = BertWithGCNAndMWE(bert_config, dropout, bert_model, oracle, layer_no)
+        elif expt_model_choice=='BertWithPreWin':
+            expt_model = BertWithPreWin(bert_config, dropout, bert_model, window_size, layer_no)
+        print('Loaded the {} expt model'.format(expt_model_choice))
+        expt_model.to(device)
 
-        optimizer = AdamW(model.parameters(), lr=2e-5, correct_bias=False)
+        optimizer = AdamW(expt_model.parameters(), lr=2e-5, correct_bias=False)
         scheduler = get_linear_schedule_with_warmup(optimizer, num_warmup_steps=num_warmup_steps,
                                      num_training_steps=num_total_steps)
 
-        scores, all_preds, all_labels, test_indices = trainer(n_epochs, model, optimizer, scheduler,
-                train_dataloader, test_dataloader, train_batch_size, test_batch_size, device)
+        scores, all_preds, all_labels, test_indices = trainer(n_epochs, expt_model, optimizer, scheduler,
+                train_dataloader, test_dataloader, train_batch_size, test_batch_size, device, expt_model_choice)
 
         recorded_results_per_fold.append((scores.accuracy(),)+scores.precision_recall_fscore_coarse())
         all_test_indices.append(test_indices)

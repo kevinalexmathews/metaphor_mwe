@@ -17,6 +17,11 @@ def get_args():
                         type=int,
                         help="batch size in testing")
 
+    parser.add_argument('--expt_model_choice',
+                        default='BertWithGCNAndMWE',
+                        choices=['BertWithGCNAndMWE', 'BertWithPreWin'],
+                        help="model to experiment with")
+
     parser.add_argument('--n_splits',
                         default=2,
                         type=int,
@@ -26,6 +31,11 @@ def get_args():
                         default=5,
                         type=int,
                         help="number of epochs in training")
+
+    parser.add_argument('-w', '--window_size',
+                        default=5,
+                        type=int,
+                        help="size of context window")
 
     parser.add_argument('--num_total_steps',
                         default=500,

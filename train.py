@@ -8,7 +8,7 @@ random_seed = 42
 
 from evaluate import Evaluate
 
-def train_test_loader(X, y, target_indices, k, batch_train, batch_test):
+def train_test_loader(X, y, target_indices, k, batch_train, batch_test, window_size):
     """Generate k-fold splits given X, y"""
     random_state = random_seed
     # Create attention masks
@@ -24,12 +24,23 @@ def train_test_loader(X, y, target_indices, k, batch_train, batch_test):
 
     X = X.numpy()
 
-    indices = np.array(target_indices)   # target token indexes
+    target_indices = np.array(target_indices)   # target token indexes
+
+    lcontext_indices = []
+    rcontext_indices= []
+    for item in target_indices:
+        lcontext_indices.append([*range(item-window_size, item)])
+        rcontext_indices.append([*reversed(range(item, item+window_size))]) # right context in reverse order
+    print('lcontext_indices[-1]: ', lcontext_indices[-1], '; rcontext_indices[-1]: ', rcontext_indices[-1])
+    lcontext_indices = np.array(lcontext_indices)
+    rcontext_indices = np.array(rcontext_indices)
 
     for train_index, test_index in kf.split(X):
         X_train, X_test = X[train_index], X[test_index]
         y_train, y_test = y[train_index], y[test_index]
-        indices_train, indices_test = indices[train_index], indices[test_index]  # target token indexes
+        target_indices_train, target_indices_test = target_indices[train_index], target_indices[test_index]  # target token indexes
+        lcontext_indices_train, lcontext_indices_test = lcontext_indices[train_index], lcontext_indices[test_index]
+        rcontext_indices_train, rcontext_indices_test = rcontext_indices[train_index], rcontext_indices[test_index]
 
         train_masks, test_masks = attention_masks[train_index], attention_masks[test_index]
 
@@ -46,21 +57,27 @@ def train_test_loader(X, y, target_indices, k, batch_train, batch_test):
         train_masks = torch.tensor(train_masks)
         test_masks = torch.tensor(test_masks)
 
-        indices_train = torch.tensor(indices_train)
-        indices_test = torch.tensor(indices_test)
+        target_indices_train = torch.tensor(target_indices_train)
+        target_indices_test = torch.tensor(target_indices_test)
+
+        lcontext_indices_train = torch.tensor(lcontext_indices_train)
+        lcontext_indices_test = torch.tensor(lcontext_indices_test)
+
+        rcontext_indices_train = torch.tensor(rcontext_indices_train)
+        rcontext_indices_test = torch.tensor(rcontext_indices_test)
 
         # Create an iterator with DataLoader
-        train_data = TensorDataset(X_train, train_masks, y_train, indices_train, train_indices)
+        train_data = TensorDataset(X_train, train_masks, y_train, target_indices_train, lcontext_indices_train, rcontext_indices_train, train_indices)
         train_sampler = RandomSampler(train_data)
         train_dataloader = DataLoader(train_data, sampler=train_sampler, batch_size=batch_train, drop_last=True)
 
-        test_data = TensorDataset(X_test, test_masks, y_test, indices_test, test_indices)
+        test_data = TensorDataset(X_test, test_masks, y_test, target_indices_test, lcontext_indices_test, rcontext_indices_test, test_indices)
         test_dataloader = DataLoader(test_data, sampler=None, batch_size=batch_test)
 
         yield train_dataloader, test_dataloader
 
 
-def trainer(epochs, model, optimizer, scheduler, train_dataloader, test_dataloader, batch_train, batch_test, device):
+def trainer(epochs, model, optimizer, scheduler, train_dataloader, test_dataloader, batch_train, batch_test, device, expt_model_choice):
 
     max_grad_norm = 1.0
     train_loss_set = []
@@ -83,17 +100,23 @@ def trainer(epochs, model, optimizer, scheduler, train_dataloader, test_dataload
 
         # Train the data for one epoch
         for step, batch in enumerate(train_dataloader):
+            # print('Train step: ', step)
             # Add batch to GPU
             batch = tuple(t.to(device) for t in batch)
             # Unpack the inputs from our dataloader
-            b_input_ids, b_input_mask, b_labels, b_target_idx, _ = batch
+            b_input_ids, b_input_mask, b_labels, b_target_idx, b_lcontext_idxs, b_rcontext_idxs, _ = batch
 
             # Clear out the gradients (by default they accumulate)
             optimizer.zero_grad()
             # Forward pass
-            ### For BERT + GCN and MWE
-            loss = model(b_input_ids.to(device), attention_mask=b_input_mask.to(device), \
-                        labels=b_labels, batch=batch_train, target_token_idx=b_target_idx.to(device))
+            if expt_model_choice=='BertWithGCNAndMWE':
+                ### For BERT + GCN and MWE
+                loss = model(b_input_ids.to(device), attention_mask=b_input_mask.to(device), \
+                            labels=b_labels, batch=batch_train, target_token_idx=b_target_idx.to(device))
+            elif expt_model_choice=='BertWithPreWin':
+                loss = model(b_input_ids.to(device), attention_mask=b_input_mask.to(device), \
+                            labels=b_labels, batch=batch_train, target_token_idx=b_target_idx.to(device),
+                            lcontext_indices=b_lcontext_idxs, rcontext_indices=b_rcontext_idxs)
 
             train_loss_set.append(loss.item())
             # Backward pass
@@ -121,17 +144,24 @@ def trainer(epochs, model, optimizer, scheduler, train_dataloader, test_dataload
         test_indices = torch.LongTensor()
 
         # Evaluate data for one epoch
-        for batch in test_dataloader:
+        for step, batch in enumerate(test_dataloader):
+            # print('Test step: ', step)
             # Add batch to GPU
             batch = tuple(t.to(device) for t in batch)
             # Unpack the inputs from our dataloader
-            b_input_ids, b_input_mask, b_labels, b_target_idx, test_idx = batch
+            b_input_ids, b_input_mask, b_labels, b_target_idx, b_lcontext_idxs, b_rcontext_idxs, test_idx = batch
             # Telling the model not to compute or store gradients, saving memory and speeding up validation
             with torch.no_grad():
                 # Forward pass, calculate logit predictions
-                ### For BERT + GCN and MWE
-                logits = model(b_input_ids.to(device), attention_mask=b_input_mask.to(device), \
-                               batch=batch_test, target_token_idx=b_target_idx.to(device))
+                if expt_model_choice=='BertWithGCNAndMWE':
+                    ### For BERT + GCN and MWE
+                    logits = model(b_input_ids.to(device), attention_mask=b_input_mask.to(device), \
+                                   batch=batch_test, target_token_idx=b_target_idx.to(device))
+                elif expt_model_choice=='BertWithPreWin':
+                    logits = model(b_input_ids.to(device), attention_mask=b_input_mask.to(device), \
+                                   batch=batch_test, target_token_idx=b_target_idx.to(device),
+                                   lcontext_indices=b_lcontext_idxs, rcontext_indices=b_rcontext_idxs)
+
 
                 # Move logits and labels to CPU
                 logits = logits.detach().cpu()
