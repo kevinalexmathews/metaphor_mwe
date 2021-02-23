@@ -8,6 +8,26 @@ random_seed = 42
 
 from evaluate import Evaluate
 
+def engage_early_stopping(cur_epoch, train_loss_set, nb_tr_steps):
+    """
+    Early Stopping
+    modeled after tf.keras.callbacks.EarlyStopping
+    TODO: restore_best_weights
+    """
+    flag = False
+    patience = 3
+    monitor = 'loss'
+    min_delta = 0
+    if monitor=='loss' and cur_epoch+1 >= patience:
+        assert (len(train_loss_set)%nb_tr_steps==0)
+        loss_per_epoch = []
+        for i in range(0, len(train_loss_set), nb_tr_steps):
+            loss_per_epoch.append(sum(train_loss_set[i:i+nb_tr_steps])/nb_tr_steps)
+        # do not proceed with training if difference in loss is above threshold `min_delta`
+        if loss_per_epoch[-1]-loss_per_epoch[-1*patience] > min_delta:
+            flag = True
+    return flag
+
 def train_test_loader(X, y, target_indices, k, batch_train, batch_test, window_size):
     """Generate k-fold splits given X, y"""
     random_state = random_seed
@@ -171,6 +191,11 @@ def trainer(epochs, model, optimizer, scheduler, train_dataloader, test_dataload
                 all_preds = torch.cat([all_preds, logits])
                 all_labels = torch.cat([all_labels,label_ids])
                 test_indices = torch.cat([test_indices, test_idx])
+
+        # Early Stopping
+        if engage_early_stopping(e, train_loss_set, nb_tr_steps):
+            print('Engaging early stopping...')
+            break
 
     scores = Evaluate(all_preds,all_labels)
     print('scores.accuracy(): {}'.format(scores.accuracy()))
