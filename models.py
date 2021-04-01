@@ -51,7 +51,7 @@ class Seqlabbase(nn.Module):
         self.window_size = window_size
         self.dropout = nn.Dropout(dropout)
         num_units = 256
-        self.bilstm = nn.LSTM(config.hidden_size, hidden_size=num_units, num_layers=1, bidirectional=False)
+        self.lstm = nn.LSTM(config.hidden_size, hidden_size=num_units, num_layers=1, bidirectional=False)
         self.linear = nn.Linear(num_units*2,num_units) # x2 for LR contexts
         self.classifier = nn.Linear(num_units, num_labels)
 
@@ -72,9 +72,9 @@ class Seqlabbase(nn.Module):
         rcontext_indices_for_gather = rcontext_indices_for_gather.expand(-1,-1,bert_lhs.shape[-1])
         out_rcontexts = torch.gather(bert_lhs_padded,1,rcontext_indices_for_gather)
 
-        out_recurrent_left, _ = self.bilstm(out_lcontexts)
+        out_recurrent_left, _ = self.lstm(out_lcontexts)
         out_recurrent_left = out_recurrent_left[:, -1, :] # keep only the last timestep
-        out_recurrent_right, _ = self.bilstm(out_rcontexts)
+        out_recurrent_right, _ = self.lstm(out_rcontexts)
         out_recurrent_right = out_recurrent_right[:, -1, :] # keep only the last timestep
         out_recurrent = torch.cat((out_recurrent_right, out_recurrent_left), 1)
 
