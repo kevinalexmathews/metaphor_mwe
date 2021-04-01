@@ -44,7 +44,7 @@ def read_file(path, trim_texts, maxlen, debug_mode, distort_context):
     # in debug mode, only a few lines are read using this `limit` variable
     limit = 1000 if pmw_label==0 else 250
 
-    for line in inp:
+    for line_idx, line in enumerate(inp, start=1):
         line = line.split(u"<SEP>")
         sentence = line[1].split(u"<ENT>")
         entity = [t.text for t in spacy_tokenizer(sentence[1])]
@@ -73,11 +73,8 @@ def read_file(path, trim_texts, maxlen, debug_mode, distort_context):
         labels.append(pmw_label)
         target_token_indices.append(index)
 
-        if debug_mode:
-            if limit==0:
-                break
-            else:
-                limit = limit-1
+        if debug_mode and line_idx==limit:
+            break
 
     print("Processed {} lines/sentences in file \'{}\'".format(len(tokenized_texts), path))
     return tokenized_texts, labels, target_token_indices
