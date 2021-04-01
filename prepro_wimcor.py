@@ -42,7 +42,7 @@ def read_file(path, trim_texts, maxlen, debug_mode, distort_context):
     target_token_indices = []
 
     # in debug mode, only a few lines are read using this `limit` variable
-    limit = 1000 if pmw_label==0 else 250
+    limit = 100 if pmw_label==0 else 25
 
     for line_idx, line in enumerate(inp, start=1):
         line = line.split(u"<SEP>")
