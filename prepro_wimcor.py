@@ -8,6 +8,9 @@ import random
 random.seed(42)
 from collections import Counter
 
+LIT = 0
+MET = 1
+
 def locate_entity(document, ent, left_w, right_w):
     left_w = '' if len(left_w) == 0 else left_w[-1].text
     right_w = '' if len(right_w) == 0 else right_w[0].text
@@ -25,9 +28,9 @@ def read_file(path, trim_texts, maxlen, debug_mode, distort_context):
     dirname = os.path.dirname(path)
     name = os.path.basename(path)
     if 'lit' in name or 'literal' in name or 'LOCATION' in name:
-        pmw_label = 0
+        pmw_label = LIT
     else:
-        pmw_label = 1
+        pmw_label = MET
 
     spacy_tokenizer = English(parser=False)
     en_nlp = spacy.load('en')
