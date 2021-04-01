@@ -56,7 +56,6 @@ if __name__ == '__main__':
     distort_context = args.distort_context
     plm_choice = args.plm_choice
     layer_no = args.layer_no
-    oracle = args.oracle
     max_grad_norm = 1.0
 
     tokenized_texts, labels, target_token_indices = get_wimcor_input(pickle_dir, trim_texts, maxlen, debug_mode, distort_context)
@@ -87,7 +86,7 @@ if __name__ == '__main__':
         print('fold number {}:'.format(i+1))
 
         if expt_model_choice=='seqlab':
-            expt_model = Seqlab(bert_config, dropout, bert_model, oracle, layer_no)
+            expt_model = Seqlab(bert_config, dropout, bert_model, layer_no)
         elif expt_model_choice=='seqlabbase':
             expt_model = Seqlabbase(bert_config, dropout, bert_model, window_size, layer_no)
         print('Loaded the {} expt model'.format(expt_model_choice))

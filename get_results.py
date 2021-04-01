@@ -88,18 +88,9 @@ def get_args():
                         dest='distort_context',
                         action='store_false')
 
-    parser.add_argument('--oracle',
-                        dest='oracle',
-                        action='store_true')
-
-    parser.add_argument('--no_oracle',
-                        dest='oracle',
-                        action='store_false')
-
     parser.set_defaults(trim_texts=True)
     parser.set_defaults(debug_mode=False)
     parser.set_defaults(distort_context=False)
-    parser.set_defaults(oracle=False)
     args = parser.parse_args()
     print(args)
 
