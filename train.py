@@ -129,11 +129,11 @@ def trainer(epochs, model, optimizer, scheduler, train_dataloader, test_dataload
             # Clear out the gradients (by default they accumulate)
             optimizer.zero_grad()
             # Forward pass
-            if expt_model_choice=='BertWithGCNAndMWE':
+            if expt_model_choice=='seqlab':
                 ### For BERT + GCN and MWE
                 loss = model(b_input_ids.to(device), attention_mask=b_input_mask.to(device), \
                             labels=b_labels, batch=batch_train, target_token_idx=b_target_idx.to(device))
-            elif expt_model_choice=='BertWithPreWin':
+            elif expt_model_choice=='seqlabbase':
                 loss = model(b_input_ids.to(device), attention_mask=b_input_mask.to(device), \
                             labels=b_labels, batch=batch_train, target_token_idx=b_target_idx.to(device),
                             lcontext_indices=b_lcontext_idxs, rcontext_indices=b_rcontext_idxs)
@@ -173,11 +173,11 @@ def trainer(epochs, model, optimizer, scheduler, train_dataloader, test_dataload
             # Telling the model not to compute or store gradients, saving memory and speeding up validation
             with torch.no_grad():
                 # Forward pass, calculate logit predictions
-                if expt_model_choice=='BertWithGCNAndMWE':
+                if expt_model_choice=='seqlab':
                     ### For BERT + GCN and MWE
                     logits = model(b_input_ids.to(device), attention_mask=b_input_mask.to(device), \
                                    batch=batch_test, target_token_idx=b_target_idx.to(device))
-                elif expt_model_choice=='BertWithPreWin':
+                elif expt_model_choice=='seqlabbase':
                     logits = model(b_input_ids.to(device), attention_mask=b_input_mask.to(device), \
                                    batch=batch_test, target_token_idx=b_target_idx.to(device),
                                    lcontext_indices=b_lcontext_idxs, rcontext_indices=b_rcontext_idxs)

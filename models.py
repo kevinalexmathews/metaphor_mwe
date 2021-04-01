@@ -4,10 +4,10 @@ from torch.nn.functional import pad
 from transformers import AdamW
 
 
-class BertWithGCNAndMWE(nn.Module):
+class Seqlab(nn.Module):
 
     def __init__(self, config, dropout, bert, layer_no, oracle, num_labels=2):
-        super(BertWithGCNAndMWE, self).__init__()
+        super(Seqlab, self).__init__()
         self.num_labels = num_labels
         self.bert = bert
         self.dropout = nn.Dropout(dropout)
@@ -50,10 +50,10 @@ class BertWithGCNAndMWE(nn.Module):
         for param in self.bert.parameters():
             param.requires_grad = True
 
-class BertWithPreWin(nn.Module):
+class Seqlabbase(nn.Module):
 
     def __init__(self, config, dropout, bert, window_size, num_labels=2):
-        super(BertWithPreWin, self).__init__()
+        super(Seqlabbase, self).__init__()
         self.num_labels = num_labels
         self.bert = bert
         self.window_size = window_size

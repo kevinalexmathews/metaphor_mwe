@@ -21,8 +21,8 @@ import time
 import gc
 
 from train import train_test_loader, trainer
-from models import BertWithGCNAndMWE
-from models import BertWithPreWin
+from models import Seqlab
+from models import Seqlabbase
 from utils import pad_or_truncate
 from utils import get_plm_resources
 from prepro_wimcor import get_input as get_wimcor_input
@@ -86,10 +86,10 @@ if __name__ == '__main__':
     for i, (train_dataloader, test_dataloader) in enumerate(splits):
         print('fold number {}:'.format(i+1))
 
-        if expt_model_choice=='BertWithGCNAndMWE':
-            expt_model = BertWithGCNAndMWE(bert_config, dropout, bert_model, oracle, layer_no)
-        elif expt_model_choice=='BertWithPreWin':
-            expt_model = BertWithPreWin(bert_config, dropout, bert_model, window_size, layer_no)
+        if expt_model_choice=='seqlab':
+            expt_model = Seqlab(bert_config, dropout, bert_model, oracle, layer_no)
+        elif expt_model_choice=='seqlabbase':
+            expt_model = Seqlabbase(bert_config, dropout, bert_model, window_size, layer_no)
         print('Loaded the {} expt model'.format(expt_model_choice))
         expt_model.to(device)
 

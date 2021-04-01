@@ -18,8 +18,8 @@ def get_args():
                         help="batch size in testing")
 
     parser.add_argument('--expt_model_choice',
-                        default='BertWithGCNAndMWE',
-                        choices=['BertWithGCNAndMWE', 'BertWithPreWin'],
+                        default='seqlab',
+                        choices=['seqlab', 'seqlabbase'],
                         help="model to experiment with")
 
     parser.add_argument('--n_splits',
