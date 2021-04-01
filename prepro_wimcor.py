@@ -52,6 +52,8 @@ def read_file(path, trim_texts, maxlen, debug_mode, distort_context):
 
         index = locate_entity(en_doc, entity, spacy_tokenizer(sentence[0].strip()), spacy_tokenizer(sentence[2].strip()))
         tokens = [t.text for t in en_doc]
+        pmw_labels = [pmw_label if t_i==index else LIT for t_i, t in enumerate(en_doc)]
+
         if distort_context:
             # distort context by replace with random words from a vocab files
             tokens = [random.choice(vocabulary) for t in tokens]
@@ -65,12 +67,13 @@ def read_file(path, trim_texts, maxlen, debug_mode, distort_context):
             len_left_context = max(0, index-maxlen//2 - 1)
             len_right_context = index + maxlen//2 - 1
             tokens = tokens[len_left_context: len_right_context]
+            pmw_labels = pmw_labels[len_left_context: len_right_context]
             index = index - len_left_context
             assert (entity[0] == tokens[index])
         # print(entity, tokens[index])
 
         tokenized_texts.append(tokens)
-        labels.append(pmw_label)
+        labels.append(pmw_labels)
         target_token_indices.append(index)
 
         if debug_mode and line_idx==limit:
@@ -86,7 +89,4 @@ def get_input(file_dir, trim_texts, maxlen, debug_mode, distort_context):
         tokenized_texts.extend(s_out)
         labels.extend(l_out)
         target_token_indices.extend(t_out)
-    print(Counter(labels))
-    labels = np.array(labels)
-    target_token_indices = np.array(target_token_indices)
     return tokenized_texts, labels, target_token_indices

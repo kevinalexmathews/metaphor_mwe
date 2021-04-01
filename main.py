@@ -66,15 +66,18 @@ if __name__ == '__main__':
     print('label of the first sample: {}'.format(labels[0]))
 
     # add special tokens at the beginning and end of each sentence
-    for sent in tokenized_texts:
+    for sent, label in zip(tokenized_texts, labels):
             sent.insert(0, '[CLS]')
             sent.insert(len(sent), '[SEP]')
+            label.insert(0, 0)
+            label.insert(len(label), 0)
     # construct the vocabulary
     vocab = list(set([w for sent in tokenized_texts for w in sent]))
     bert_model, tokenizer, bert_config = get_plm_resources(plm_choice, len(vocab))
     # index the input words
     input_ids = [tokenizer.convert_tokens_to_ids(x) for x in tokenized_texts]
     input_ids = pad_or_truncate(input_ids,maxlen)
+    labels = pad_or_truncate(labels, maxlen)
 
     all_test_indices = []
     all_predictions = []
