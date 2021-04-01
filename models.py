@@ -11,21 +11,16 @@ class Seqlab(nn.Module):
         self.num_labels = num_labels
         self.bert = bert
         self.dropout = nn.Dropout(dropout)
-        self.linear = nn.Linear(config.hidden_size,256)
-        self.classifier = nn.Linear(256, num_labels)
+        self.bilstm = nn.LSTM(config.hidden_size, hidden_size=100, num_layers=1, bidirectional=True)
+        self.classifier = nn.Linear(100*2, num_labels)
         self.layer_no = layer_no
 
     def forward(self, input_ids, target_token_idx, attention_mask, batch, labels=None):
         outputs = self.bert(input_ids, output_hidden_states=True)
-        # gcn = outputs.last_hidden_state
-        gcn = outputs.hidden_states[self.layer_no]
+        out_bert = outputs.hidden_states[self.layer_no]
 
-        target_token_idx_for_gather = target_token_idx.reshape(-1,1,1)
-        target_token_idx_for_gather = target_token_idx_for_gather.expand(-1,1,gcn.shape[-1])
-        gcn_pooled = torch.gather(gcn,1,target_token_idx_for_gather).view(batch,-1)
-
-        output = self.dropout(self.linear(gcn_pooled))
-        logits = self.classifier(output)
+        out_recurrent, _ = self.bilstm(out_bert)
+        logits = self.classifier(out_recurrent)
 
         if labels is not None: # train time
             loss_fct = nn.CrossEntropyLoss()
